@@ -1,3 +1,73 @@
+;
+; NAME:
+; 		AIA_HSI_DEM_ANALYSIS
+;
+; PURPOSE:
+; This procedure performs differential emission measure (DEM) analysis of both AIA
+; and RHESSI data, using either a simple Gaussian distribution as the DEM model, or
+; an Epstein function as the DEM model.
+;
+; CATEGORY:
+;       DEM ANALYSIS
+;
+; CALLING SEQUENCE:
+;       aia_hsi_dem_analysis, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
+;       spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
+;
+; CALLED BY: do_dem_analysis
+;
+; CALLS:
+;	get_aia_file_list.pro
+;	aia_teem_pixel_area.pro
+;       aia_teem_table.pro
+;	aia_teem_table_epstein.pro
+;	get_hsi_table_entry.pro
+;
+; PREREQUISITES:
+;	The SPEX and XRAY packages within SSW must be installed
+;	
+;
+; INPUTS:
+;	None - all keywords
+;
+; KEYWORD INPUTS:
+;	DIR 		: directory to look for AIA fits files. Default is the current directory
+;	HSI_IMAGE 	: filename of a RHESSI image to be used in the DEM analysis. The 50% contour from the RHESSI image is used
+;			to define the region of interest over which the DEM is calculated in the AIA images.
+;	FILESET		: the prefix describing the AIA files to search for. The options are 'AIA' (finds all files in AIA20110101* format)
+;			 or 'ssw_cutout' (finds all files in ssw_cutout* format). Currently only AIA is recommended.
+;	FORCE_TABLE	: forces aia_teem_table.pro to be re-run, and the AIA DEM lookup table to be recalculated.
+;	AIA_ONLY	: if set, DEM analysis is only performed on AIA - RHESSI data is ignored.
+;	EPSTEIN		: if set, the Epstein DEM profile is used. By default, the Gaussian profile is used.
+;	N		: This needs to be set if the EPSTEIN keyword is set. N controls the steepness of the Epstein profile, such that
+;			n=1 is the classical profile and n -> infinity corresponds to a boxcar function.
+;	SPEC_FILE	: the RHESSI spectrum file to use for RHESSI DEM analysis, e.g. hsi_spectrum_20110621_182202_d1.fits
+;	DRM_FILE	: the corresponding RHESSI DRM file to use for the RHESSI DEM analysis, e.g. hsi_srm_20110621_182202_d1.fits
+;	FIT_TIME	: a 2-element string indicating the time interval between which the RHESSI DEM analysis should be performed, e.g.
+;			fit_time = ['16-Jul-2011 17:02:00.000', '16-Jul-2011 17:03:00.000']
+;	BKG_TIME	: a 2-element string indicating the time interval to use for the RHESSI spectral background subtraction,e.g.
+;			bkg_time = ['16-Jul-2011 17:36:00.000', '16-Jul-2011 17:39:00.000']
+;			
+;
+; OUTPUTS:
+; Depending on keywords, will produce some of the following:
+; 	AIA_FIT_RESULTS.SAV
+;	AIA_HSI_FIT_RESULTS.SAV
+;	AIA_FIT_RESULTS_EPSTEIN.SAV
+;	AIA_HSI_FIT_RESULTS_EPSTEIN.SAV
+;
+; PROCEDURE:
+; 1) For an event, download to a directory a set of AIA data files of the 6 optically thin wavelengths (94A, 131A, 171A, 193A, 211A, 335A)
+; 2) Create a RHESSI image of the event.
+; 3) For HSI analysis, create a set of RHESSI spectrum files. Use seperate detectors, native energy bins.
+; 4) Execute aia_hsi_dem_analysis, or alternatively call it with the DO_DEM_ANALYSIS wrapper.
+;
+; WRITTEN: Andrew Inglis, 2012/10/17
+;
+
+
+
+
 PRO aia_hsi_dem_analysis, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
 spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
 
