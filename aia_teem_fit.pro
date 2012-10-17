@@ -1,6 +1,6 @@
 FUNCTION aia_teem_fit, flux_obs, flux_obs_error, FLUX_fit = flux_fit, fit_params = fit_params, PLOT = plot
 
-restore, '/Users/schriste/Dropbox/idl/aia_deem/teem_table.sav', /verbose
+restore, 'teem_table.sav', /verbose
 
 dim	= size(flux)
 nte	= dim[1]

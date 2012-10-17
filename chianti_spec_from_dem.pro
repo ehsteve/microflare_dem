@@ -125,7 +125,7 @@ IF keyword_set(PLOT) THEN BEGIN
 	xrange = minmax(nenergy_arr)
 	IF keyword_set(preset_dem) THEN title = preset_dem ELSE title = ''
 	
-	plot, nenergy_arr, photon_flux, /ylog, /xlog, yrange = yrange, xrange = xrange, /xstyle, /ystyle, xtitle = xtitle, ytitle = ytitle, /nodata, charsize = 2.0, ytickf = 'exp1', title = title
+	plot, nenergy_arr, photon_flux, /ylog, /xlog, yrange = yrange, xrange = xrange, /xstyle, /ystyle, xtitle = xtitle, ytitle = ytitle, /nodata, charsize = 2.0;, ytickf = 'exp1', title = title
 
 	oplot, nenergy_arr, photon_flux, thick = 1.0, psym = 10
 ENDIF

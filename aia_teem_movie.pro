@@ -21,7 +21,7 @@ default, dir, '~/idlpro/schriste/aia_deem/'
 ;default, hsi_fits, '~/Dropbox/idl/aia_deem/hsi_image_20110716_170350.fits'
 default, save_fit, ''
 default, hsi_image, ''
-default, npix, 6 ;(macropixel size=4x4 pixels, yields 512x512 map) 
+default, npix, 4 ;(macropixel size=4x4 pixels, yields 512x512 map) 
 default, q94, 1.0 ;(correction factor for low-temperature 94 A response)
 
 loadct,0
@@ -242,10 +242,12 @@ ENDIF
 	IF keyword_set(XRAYSPEC) THEN BEGIN
 		; now simulate the x-ray spectrum for this area
 			dem = [transpose(telog), transpose(emlog)]
-			result = chianti_spec_from_dem(dem, /plot)
+			help,dem
+			stop
+			result = chianti_spec_from_dem(reform(dem(0,*)),reform(dem(1,*)), /plot)
 		IF keyword_set(hsi_fits) THEN BEGIN	
 			dem_mask = [transpose(telog_mask), transpose(emlog_mask)]
-			result_mask = chianti_spec_from_dem(dem_mask)
+			result_mask = chianti_spec_from_dem(reform(dem_mask(0,*)),reform(dem_mask(1,*)))
 			oplot, result_mask[0,*], result_mask[1,*]
 		ENDIF
 	ENDIF
