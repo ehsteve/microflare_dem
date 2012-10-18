@@ -3,27 +3,67 @@
 ;
 ; PURPOSE:
 ; This procedure returns the photon spectrum at the Earth, d(Flux)(eph)/dt,
-; from a differential emission measure distribution which has a Gaussian dependence on temperature,
-; for a given set of Gaussian parameters. 
+; from a differential emission measure distribution which has either a Gaussian or Epstein dependence on temperature,
+; for a given set of Gaussian parameters. This photon spectrum is compared with the real RHESSI spectrum observed for that time.
 ; 
 ; CATEGORY:
-;       SPECTRA, XRAYS
+;       SPECTRA, XRAYS, DEM ANALYSIS
 ;
 ; CALLING SEQUENCE:
-;       get_hsi_table_entry, params,model_count_flux,real_count_flux,axis,summary, obj=obj
+;	get_hsi_table_entry,params,model_count_flux,real_count_flux,axis,summary, obj=obj, $
+;	spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,epstein=epstein
+;       
 ;
 ; CALLS:
-;       f_therm_dem_gauss.pro
+;       f_multi_therm.pro
+;	f_multi_therm_gauss.pro
+;	f_multi_therm_epstein.pro
+;
+; PREREQUISITES:
+;	The XRAY and SPEX branches of SSW must be installed.
 ;
 ; INPUTS:
-;       params -   parameter array which should consist of:
-;                  a[0] = emission measure (in 10^49 cm-3) at the maximum
-;                  point in the Gaussian DEM distribution, i.e. at tmax
-;                  a[1] = the temperature where the peak of the
-;                  Gaussian DEM distribution is located, in units of
-;                  log T (K). e.g. a[1] = 7.0 for 10 MK.
-;                  a[2] = The width of the DEM Gaussian distribution
-;                  in log T (K) units. e.g. a[2] = 0.3.
+;	PARAMS:
+;	TWO CASES: 1) Default - regular Gaussian profile is used (/epstein is NOT SET):
+;
+;       	a(0) = differential emission measure at the maximum point in the
+;          	Gaussian (i.e. the point defined in a[4]), in units of 10^49 cm^(-3) keV^(-1)
+;   		a(1) = minimum plasma temperature to use in the integration, in keV
+;   		a(2) = maximum plasma temperature to use in the integration, in keV
+;   		a(3) = Width of the differential emission measure Gaussian, in
+;          	units of *log K* (e.g. a[3] = 0.2.)
+;   		a(4) = Temperature at which the maximum of the Gaussian DEM is
+;          	located, in keV
+;   		a(5)  Relative abundance for Iron and Nickel
+;            	Relative to coronal abundance for chianti
+;            	Relative to solar abundance for mewe
+;           (unless user selects a different abundance table manually)
+;
+;		2) Using the Epstein profile instead (/epstein keyword IS SET):
+;
+;		a(0) = differential emission measure at the maximum point in the
+;          	Epstein profile (i.e. the point defined in a[4]), in units of 10^49 cm^(-3) keV^(-1)
+;   		a(1) = minimum plasma temperature to use in the integration, in keV
+;   		a(2) = maximum plasma temperature to use in the integration, in keV
+;   		a(3) = Width of the distribution, in units of *log K* (e.g. a[3] = 0.2.)
+;   		a(4) = Temperature at which the center of the DEM distribution is
+;          	located, in keV
+;   		a(5) = steepness parameter of the Epstein profile
+;   		a(6)  Relative abundance for Iron and Nickel
+;            	Relative to coronal abundance for chianti
+;            	Relative to solar abundance for mewe
+;           (unless user selects a different abundance table manually)
+;
+; KEYWORD INPUTS:
+;
+;	SPEC_FILE	: the RHESSI spectrum file to use for RHESSI DEM analysis, e.g. hsi_spectrum_20110621_182202_d1.fits
+;	DRM_FILE	: the corresponding RHESSI DRM file to use for the RHESSI DEM analysis, e.g. hsi_srm_20110621_182202_d1.fits
+;	FIT_TIME	: a 2-element string indicating the time interval between which the RHESSI DEM analysis should be performed, e.g.
+;			fit_time = ['16-Jul-2011 17:02:00.000', '16-Jul-2011 17:03:00.000']
+;	BKG_TIME	: a 2-element string indicating the time interval to use for the RHESSI spectral background subtraction,e.g.
+;			bkg_time = ['16-Jul-2011 17:36:00.000', '16-Jul-2011 17:39:00.000']
+;	EPSTEIN		: If set, the Epstein fitting function f_multi_therm_epstein.pro is used instead of the default Gaussian fitting
+;			function f_multi_therm_gauss.pro
 ;
 ; OUTPUTS:
 ;	model_count_flux 	- the count RHESSI count flux resulting from the model DEM function
@@ -31,16 +71,19 @@
 ;	axis			- the array of count energy bins used.
 ;	summary			- a structure containing all of the summary data from the model fitting procedure.
 ;
-; LIMITATIONS:
-;	Requires a hardcoded spectrum file and srm file.
+;
 ;
 ; WRITTEN: Andrew Inglis, 2012/07/30
+;	   Andrew Inglis, 2012/10/17 	- no longer has RHESSI spectral files or fit times hardcoded - now passed in from above.
+;					Energy range for fit remains coded at [5,12].
+;					- incorporated Epstein fit function calling into this routine. Now available using the
+;					/EPSTEIN keyword. This also changes the expected dimensions of params from 6 to 7 elements.
 ;
 
 
                                     
 ;  params is of the form [a0,a1,a2,a3,a4,a5] where:
-;  ao - emission measure at tmax, in 10^49 cm-3 keV-1
+;  ao - emission measure at tmax, in 10^49 cm-3 keV-1 etc.
 ; 
 ;                                                                                       
 pro get_hsi_table_entry, params,model_count_flux,real_count_flux,axis,summary, obj=obj,spec_file=spec_file, drm_file=drm_file, $
