@@ -1,5 +1,8 @@
 PRO plot_aia_flux_ratios,epstein=epstein
 
+;plots modelled vs observed AIA flux for a given model DEM.
+
+
 ;restore,'aia_fit_results_manual.sav',/verbose
 ;a_man=aia_fit_results
 
