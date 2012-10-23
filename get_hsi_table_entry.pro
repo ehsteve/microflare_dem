@@ -64,6 +64,7 @@
 ;			bkg_time = ['16-Jul-2011 17:36:00.000', '16-Jul-2011 17:39:00.000']
 ;	EPSTEIN		: If set, the Epstein fitting function f_multi_therm_epstein.pro is used instead of the default Gaussian fitting
 ;			function f_multi_therm_gauss.pro
+;	EMFREE		: if set, the emission measure parameter a[0] is free. If not present, then a[0] is fixed.
 ;
 ; OUTPUTS:
 ;	model_count_flux 	- the count RHESSI count flux resulting from the model DEM function
@@ -78,6 +79,7 @@
 ;					Energy range for fit remains coded at [5,12].
 ;					- incorporated Epstein fit function calling into this routine. Now available using the
 ;					/EPSTEIN keyword. This also changes the expected dimensions of params from 6 to 7 elements.
+;	   Andrew Inglis, 2012/10/23	- added /EMFREE keyword.
 ;
 
 
@@ -87,7 +89,7 @@
 ; 
 ;                                                                                       
 pro get_hsi_table_entry, params,model_count_flux,real_count_flux,axis,summary, obj=obj,spec_file=spec_file, drm_file=drm_file, $
-fit_time=fit_time,bkg_time=bkg_time, epstein=epstein                                        
+fit_time=fit_time,bkg_time=bkg_time, epstein=epstein, emfree=emfree                                        
 if not is_class(obj,'SPEX',/quiet) then obj = ospex();/no_gui)                                     
 ;obj-> set, $                                                                              
  ;spex_specfile= 'hsi_spectrum_20110621_175120_d4.fits'    
@@ -106,15 +108,24 @@ IF keyword_set(epstein) THEN BEGIN
 	obj -> set, fit_function= 'multi_therm_epstein'
 	obj-> set, fit_comp_params= [params[0], params[1], params[2],params[3],params[4],params[5],params[6]]                              
 	obj-> set, fit_comp_minima= [1.00000e-12, 0.087, 8.5, 0.005, 0.09, 0.01, 1]                                   
-	obj-> set, fit_comp_maxima= [1.00000e+2, 0.087, 8.5, 0.4, 6.0, 10., 100]                             
-	obj-> set, fit_comp_free_mask= [0B, 0B, 0B, 0B, 0B, 0B, 0B]                                               
+	obj-> set, fit_comp_maxima= [1.00000e+2, 0.087, 8.5, 0.4, 6.0, 10., 100]
+	IF keyword_set(emfree) THEN BEGIN                             
+		obj-> set, fit_comp_free_mask= [1B, 0B, 0B, 0B, 0B, 0B, 0B]
+	ENDIF ELSE BEGIN
+		obj-> set, fit_comp_free_mask= [0B, 0B, 0B, 0B, 0B, 0B, 0B]
+	ENDELSE                                               
 
 ENDIF ELSE BEGIN                                                          
 	obj-> set, fit_function= 'multi_therm_gauss'
         obj-> set, fit_comp_params= [params[0], params[1], params[2],params[3],params[4],params[5]]                              
 	obj-> set, fit_comp_minima= [1.00000e-12, 0.087, 8.5, 0.005, 1., 0.09]                                   
-	obj-> set, fit_comp_maxima= [1.00000e+2, 0.087, 8.5, 0.4, 1., 6.0]                             
-	obj-> set, fit_comp_free_mask= [0B, 0B, 0B, 0B, 0B, 0B]          
+	obj-> set, fit_comp_maxima= [1.00000e+2, 0.087, 8.5, 0.4, 1., 6.0]
+	IF keyword_set(emfree) THEN BEGIN                             
+		obj-> set, fit_comp_free_mask= [1B, 0B, 0B, 0B, 0B, 0B]
+	ENDIF ELSE BEGIN
+		obj-> set, fit_comp_free_mask= [0B, 0B, 0B, 0B, 0B, 0B]
+	ENDELSE
+          
 ENDELSE
                                      
 obj-> set, fit_comp_spectrum= ''                                                          

@@ -29,7 +29,7 @@
 ;
 
 
-PRO hsi_teem_table
+PRO hsi_teem_table,epstein=epstein,n=n,spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
 
 ;params has 6 elements
 ;a0 - differential emission measure at the maximum of the Gaussian distribution (cm-3 kev-1)
@@ -50,13 +50,13 @@ t_min = 6.0
 t_max = 7.5
 t_d = 0.05
 telog = t_d * findgen((t_max - t_min)/t_d) + t_min
-t = (10^telog)/11.6e6
+tinkev = (10^telog)/11.6e6
 
 
 
 tsig_min = 0.01
-tsig_max = 0.40
-tsig_d = 0.005
+tsig_max = 0.80
+tsig_d = 0.01
 tsig = tsig_d * findgen((tsig_max - tsig_min)/tsig_d) + tsig_min
 
 nsig=n_elements(tsig)
@@ -67,15 +67,37 @@ chi_best_hsi=fltarr(nte,nsig)
 
 		FOR k=0, nte-1 DO BEGIN
    			FOR l = 0, nsig-1 DO BEGIN
-				get_hsi_table_entry,[em_def,t_low,t_high,tsig(l),t(k),abun],model_count_flux,real_count_flux,axis,summary, obj=obj
-				em_best_hsi[k,l] = summary.spex_summ_params[0]
-				chi_best_hsi[k,l] = summary.spex_summ_chisq
+
+			IF keyword_set(epstein) THEN BEGIN
+				get_hsi_table_entry,[em_def,t_low,t_high,tsig(l),tinkev(k),n,1],model_count_flux,real_count_flux,axis,summary, obj=obj, $
+				spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,epstein=epstein,/emfree
+			ENDIF ELSE BEGIN
+				get_hsi_table_entry,[em_def,t_low,t_high,tsig(l),tinkev(k),1],model_count_flux,real_count_flux,axis,summary, obj=obj, $
+				spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,/emfree
+			ENDELSE
+
+			;get_hsi_table_entry,[em_def,t_low,t_high,tsig(l),t(k),abun],model_count_flux,real_count_flux,axis,summary, obj=obj
+			em_best_hsi[k,l] = summary.spex_summ_params[0]
+			chi_best_hsi[k,l] = summary.spex_summ_chisq
 			endfor
 		endfor
+
+
+chimin=MIN(chi_best_hsi,pos)
+pos=array_indices(chi_best_hsi,pos)
+telog_best=telog[pos[0]]
+sig_best=tsig[pos[1]]
+
 				
-hsi_teem_table=create_struct('telog',telog,'tsig',tsig,'em_best_hsi',em_best_hsi,'chi_best_hsi',chi_best_hsi)
 
-SAVE,hsi_teem_table,filename='hsi_teem_table.sav',/verbose
 
+IF keyword_set(epstein) THEN BEGIN
+	hsi_teem_table=create_struct('telog',telog,'tsig',tsig,'em_best_hsi',em_best_hsi,'chi_best_hsi',chi_best_hsi,'telog_best',telog_best,$
+	'sig_best',sig_best,'chimin',chimin,'epstein',epstein,'n',n)
+	SAVE,hsi_teem_table,filename='hsi_teem_table_epstein.sav',/verbose
+ENDIF ELSE BEGIN
+	hsi_teem_table=create_struct('telog',telog,'tsig',tsig,'em_best_hsi',em_best_hsi,'chi_best_hsi',chi_best_hsi,'telog_best',telog_best,'sig_best',sig_best,'chimin',chimin)
+	SAVE,hsi_teem_table,filename='hsi_teem_table.sav',/verbose
+ENDELSE
 
 END
