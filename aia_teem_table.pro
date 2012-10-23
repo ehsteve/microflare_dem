@@ -1,4 +1,4 @@
-pro aia_teem_table, wave_, tsig, TE_RANGE = te_range, TELOG = telog, Q94 = q94, teem_table, SAVE_DIR = save_dir, area = area
+pro aia_teem_table, wave_, tsig, TE_RANGE = te_range, TELOG = telog, Q94 = q94, teem_table, SAVE_DIR = save_dir, area = area, epstein=epstein,n=n
 ;+
 ; Project     : AIA/SDO
 ;
@@ -17,8 +17,9 @@ pro aia_teem_table, wave_, tsig, TE_RANGE = te_range, TELOG = telog, Q94 = q94, 
 ; Outputs     : postscript file <plotname>_col.ps (if io=2)
 ;
 ; History     :  3-Mar-2011, Version 1 written by Markus J. Aschwanden
+;		 23-Oct-2012, Modified by Andrew Inglis - added EPSTEIN and N keywords so Epstein lookup table can be produced instead of Gaussian.
 ;
-; Contact     : aschwanden@lmsal.com
+; Contact     : aschwanden@lmsal.com, andrew.inglis@nasa.gov
 ;-
 
 default, save_dir, ''
@@ -84,7 +85,11 @@ flux = fltarr(nte, nsig, nwave)
 
 FOR i = 0, nte-1 DO BEGIN
 	FOR j = 0, nsig-1 DO BEGIN
-		em_te = em1 * exp(-(telog - telog[i])^2 / (2. * tsig[j]^2))
+		IF keyword_set(epstein) THEN BEGIN
+			em_te = em1 * (1/cosh([  (telog-telog[i])/(tsig[j])]^n))^2
+		ENDIF ELSE BEGIN
+			em_te = em1 * exp(-(telog - telog[i])^2 / (2. * tsig[j]^2))
+		ENDELSE
   		FOR iw = 0, nwave-1 DO flux[i,j,iw] = total(resp_corr[*,iw] * em_te * dte)
 	ENDFOR
 ENDFOR

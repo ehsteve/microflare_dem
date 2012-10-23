@@ -119,6 +119,7 @@ ENDIF ELSE BEGIN
 teem_table='teem_table.sav'
 ENDELSE
 
+f = file_search(teem_table)
 
 file_list = get_aia_file_list(dir, fileset = fileset)
 FOR i = 0, nwave-1 DO nfiles[i] = n_elements(file_list[*,i])
@@ -150,16 +151,11 @@ tsig_max = 0.80
 tsig_d = 0.01
 tsig = tsig_d * findgen((tsig_max - tsig_min)/tsig_d) + tsig_min
 
-f = file_search(teem_table)
+
 
 area = aia_teem_pixel_area(file_list[0,0])
 
-IF keyword_set(epstein) THEN BEGIN
-IF f[0] EQ '' OR keyword_set(FORCE_TABLE) THEN aia_teem_table_epstein, wave_, tsig, telog = telog, q94 = q94, teem_table, save_dir = save_dir, area = area, n=n
-ENDIF ELSE BEGIN
-IF f[0] EQ '' OR keyword_set(FORCE_TABLE) THEN aia_teem_table, wave_, tsig, telog = telog, q94 = q94, teem_table, save_dir = save_dir, area = area
-ENDELSE
-
+IF f[0] EQ '' OR keyword_set(FORCE_TABLE) THEN aia_teem_table, wave_, tsig, telog = telog, q94 = q94, teem_table, save_dir = save_dir, area = area, n=n,epstein=epstein
 
 
 ; if a hsi_image was given then create a mask out of it
