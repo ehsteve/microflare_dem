@@ -2,36 +2,54 @@
 ; 		HSI_TEEM_TABLE
 ;
 ; PURPOSE:
-; This procedure returns the count spectrum by RHESSI (at the Earth)
-; from a differential emission measure distribution which has a Gaussian dependence on temperature,
-; for a range of values of peak temperature T and Gaussian width sigma. 
+; This procedure returns the best-fit DEM to a RHESSI count spectrum (at the Earth)
+; using a differential emission measure distribution which has a either a Gaussian or Epstein dependence on temperature,
+; for a range of values of peak temperature T and widths sigma. 
 ; 
 ; CATEGORY:
-;       SPECTRA, XRAYS
+;       SPECTRA, XRAYS, DEM ANALYSIS
 ;
 ; CALLING SEQUENCE:
-;       hsi_teem_table
+;       hsi_teem_table,epstein=epstein,n=n,spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
 ;
 ; CALLS:
 ;       get_hsi_table_entry.pro
-;	f_therm_dem_gauss.pro
+;	f_multi_therm.pro
+;	f_multi_therm_gauss.pro
+;	f_multi_therm_epstein.pro
+;
+; PREREQUISITES:
+;	The SPEX and XRAY packages within SSW must be installed
 ;
 ; INPUTS:
 ;       NONE
 ;
+; KEYWORD INPUTS:
+;	EPSTEIN		: if set, the Epstein DEM profile is used. By default, the Gaussian profile is used.
+;	N		: This needs to be set if the EPSTEIN keyword is set. N controls the steepness of the Epstein profile, such that
+;			n=1 is the classical profile and n -> infinity corresponds to a boxcar function.
+;	SPEC_FILE	: the RHESSI spectrum file to use for RHESSI DEM analysis, e.g. hsi_spectrum_20110621_182202_d1.fits
+;	DRM_FILE	: the corresponding RHESSI DRM file to use for the RHESSI DEM analysis, e.g. hsi_srm_20110621_182202_d1.fits
+;	FIT_TIME	: a 2-element string indicating the time interval between which the RHESSI DEM analysis should be performed, e.g.
+;			fit_time = ['16-Jul-2011 17:02:00.000', '16-Jul-2011 17:03:00.000']
+;	BKG_TIME	: a 2-element string indicating the time interval to use for the RHESSI spectral background subtraction,e.g.
+;			bkg_time = ['16-Jul-2011 17:36:00.000', '16-Jul-2011 17:39:00.000']
+;
 ; OUTPUTS:
-;	HSI_TEEM_TABLE - a structure which is saved in the file 'hsi_teem_table.sav'
+;	HSI_TEEM_TABLE - a structure which is saved in the file 'hsi_teem_table.sav' or 'hsi_teem_table_epstein.sav'
 ;
 ; LIMITATIONS:
 ;	T and sig range are hardcoded.
 ;
 ; WRITTEN: Andrew Inglis, 2012/07/30
+;	   Andrew Inglis, 2012/10/23 - modified to accept the input keywords EPSTEIN, N, SPEC_FILE, DRM_FILE, $
+;				       FIT_TIME, and BKG_TIME. Now calls get_hsi_table_entry with the /EMFREE keyword.
 ;
 
 
 PRO hsi_teem_table,epstein=epstein,n=n,spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
 
-;params has 6 elements
+;params used in get_hsi_table_entry has 6 (or 7 if /epstein) elements
 ;a0 - differential emission measure at the maximum of the Gaussian distribution (cm-3 kev-1)
 ;a1 - lower bound for the temperature integral, in keV
 ;a2 - upper bound for the temperature integral, in keV
