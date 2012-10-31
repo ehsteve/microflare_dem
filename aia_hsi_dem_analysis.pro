@@ -12,7 +12,7 @@
 ;
 ; CALLING SEQUENCE:
 ;       aia_hsi_dem_analysis, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
-;       spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
+;       spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,xrange=xrange,yrange=yrange,override=override
 ;
 ; CALLED BY: do_dem_analysis
 ;
@@ -35,7 +35,7 @@
 ;	HSI_IMAGE 	: filename of a RHESSI image to be used in the DEM analysis. The 50% contour from the RHESSI image is used
 ;			to define the region of interest over which the DEM is calculated in the AIA images.
 ;	FILESET		: the prefix describing the AIA files to search for. The options are 'AIA' (finds all files in AIA20110101* format)
-;			 or 'ssw_cutout' (finds all files in ssw_cutout* format). Currently only AIA is recommended.
+;			 or 'ssw_cutout' (finds all files in ssw_cutout* format). Currently only 'AIA' is recommended.
 ;	FORCE_TABLE	: forces aia_teem_table.pro to be re-run, and the AIA DEM lookup table to be recalculated.
 ;	AIA_ONLY	: if set, DEM analysis is only performed on AIA - RHESSI data is ignored.
 ;	EPSTEIN		: if set, the Epstein DEM profile is used. By default, the Gaussian profile is used.
@@ -47,6 +47,9 @@
 ;			fit_time = ['16-Jul-2011 17:02:00.000', '16-Jul-2011 17:03:00.000']
 ;	BKG_TIME	: a 2-element string indicating the time interval to use for the RHESSI spectral background subtraction,e.g.
 ;			bkg_time = ['16-Jul-2011 17:36:00.000', '16-Jul-2011 17:39:00.000']
+;	XRANGE, YRANGE	: Optionally, set a region of interest on the sun to perform the DEM analysis over. Mutually exclusive with
+;			the HSI_IMAGE keyword. Not recommended for joint AIA + RHESSI fitting.
+;	OVERRIDE	: overrides the warning not to run joint AIA+RHESSI DEM analysis with XRANGE and YRANGE set. For experts only. 
 ;			
 ;
 ; OUTPUTS:
@@ -64,26 +67,53 @@
 ;
 ; WRITTEN: Andrew Inglis, 2012/10/17
 ;
-
-
-
+; MODIFICATION HISTORY:
+;	  Andrew Inglis, 2012/10/31 - added failsafe to bail out with warning message in case /EPSTEIN is set but N is not.
+;				    - added XRANGE, YRANGE and OVERRIDE keywords. Can now optionally invoke xrange and yrange instead of
+;					choosing a mask area with the HSI_IMAGE keyword.
+;				    - HSI_IMAGE keyword is no longer mandatory (entire AIA image area will be used in this case).
+;				    - fixed bug whereby flare_area definition depended on HSI_IMAGE being set. altered the calculation of 
+;					the flare area, and re-ordered code elements to improve clarity.
+;				    - updated header documentation and code comments
+;
 
 PRO aia_hsi_dem_analysis, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
-spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
+spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,xrange=xrange,yrange=yrange,override=override
 
-
+;start with some checks to make sure there are no problems with the initialisation
+;---------------------------------------------------------------------------------
 IF (n_elements(fit_time) ne 2) THEN BEGIN
-	print,'fit_time must be a 2-element string. Aborting'
+	print,'fit_time must be a 2-element string. Aborting.'
 	return
 ENDIF ELSE IF (n_elements(bkg_time) ne 2) THEN BEGIN
-	print,'bkg_time must be a 2-element string. Aborting'
+	print,'bkg_time must be a 2-element string. Aborting.'
 	return
 ENDIF ELSE IF NOT keyword_set(spec_file) THEN BEGIN
-	print,'No RHESSI spectrum file selected. Aborting'
+	print,'No RHESSI spectrum file selected. Aborting.'
 	return
 ENDIF ELSE IF NOT keyword_set(drm_file) THEN BEGIN
-	print,'No RHESSI DRM file selected. Aborting'
+	print,'No RHESSI DRM file selected. Aborting.'
 	return
+ENDIF ELSE IF keyword_set(epstein) AND NOT keyword_set(n) THEN BEGIN
+	print,'/EPSTEIN keyword is set, but steepness keyword N is not set.'
+	print,'N must be given when /EPSTEIN is used. Aborting.'
+	return
+ENDIF ELSE IF (keyword_set(xrange) AND NOT keyword_set(yrange)) OR (keyword_set(yrange) AND NOT keyword_set(xrange)) THEN BEGIN
+	print,'XRANGE and YRANGE must both be set. Aborting.'
+	return
+ENDIF ELSE IF keyword_set(xrange) AND keyword_set(yrange) AND keyword_set(hsi_image) THEN BEGIN
+	print,'HSI_IMAGE keyword is mutually exclusive with XRANGE and YRANGE! Aborting'
+	return
+ENDIF ELSE IF keyword_set(xrange) AND keyword_set(yrange) AND NOT keyword_set(aia_only) AND NOT keyword_set(override) THEN BEGIN
+	print,'-------------------------------------------------------------------------------------------------------------'
+	print,'Keywords XRANGE and YRANGE are set, but AIA_ONLY is not set. This is not recommended!'
+	print,'Area estimates with XRANGE and YRANGE may be misleading during joint AIA+RHESSI fitting.'
+	print,'For joint fitting, it is recommended to use a RHESSI image to estimate the area, using the HSI_IMAGE keyword'
+	print,''
+	print,'EXPERTS: To override this warning, call with the /OVERRIDE keyword set'
+	print,'-------------------------------------------------------------------------------------------------------------'
+	return
+
 ENDIF ELSE BEGIN
 	print,' '
 	print,'----------------------------------------------------------'
@@ -92,9 +122,10 @@ ENDIF ELSE BEGIN
 	print,'DIR: ',dir
 	IF keyword_set(force_table) THEN print,'FORCE TABLE'
 	IF keyword_set(aia_only) THEN print,'AIA ONLY'
-	IF keyword_set(epstein) THEN print,'EPSTEIN'
+	IF keyword_set(epstein) THEN print,'Model: EPSTEIN' ELSE print, 'Model: GAUSS'
 	IF keyword_set(n) THEN print,'N = ',n
-	print,'RHESSI image: ',hsi_image
+	IF keyword_set(hsi_image) THEN print,'RHESSI image: ',hsi_image
+	IF keyword_set(xrange) AND keyword_set(yrange) THEN print,'xrange: [' + num2str(xrange) +']', '  yrange: [' + num2str(yrange) +']'
 	print,'RHESSI fit time: ',fit_time
 	print,'RHESSI background time: ',bkg_time
 	print,'RHESSI spectrum file: ',spec_file
@@ -107,40 +138,42 @@ ENDELSE
 
 
 
-;first section should be to get the AIA fluxes based on the RHESSI image. Have some code that already does this.
+;first do some preliminaries and find the AIA image set corresponding to the given input time
+;----------------------------------------------------------------------------------------------
 
 wave_ =['131','171','193','211','335','94'] 
 nwave =n_elements(wave_) 
 nfiles = fltarr(nwave)
 
+;set the filenames for the AIA lookup table
 IF keyword_set(epstein) THEN BEGIN
 teem_table='teem_table_epstein.sav'
 ENDIF ELSE BEGIN
 teem_table='teem_table.sav'
 ENDELSE
 
+;find out whether the lookup table already exists
 f = file_search(teem_table)
 
+;get a list of all the AIA files in the specified directory
 file_list = get_aia_file_list(dir, fileset = fileset)
 FOR i = 0, nwave-1 DO nfiles[i] = n_elements(file_list[*,i])
 
-;hardcoded this for 21 June 2011 flare
-;marker=120;120
-;hardcode for the 15 July 2011 flare
-;marker=122
-
+;this is the time where we want to extract a set of 6 AIA images
 aia_time=anytim(fit_time[0],/utime)
 
+;find the closest time to AIA_TIME available from the AIA data files. MARKER stores the array index of this
 filetimes=anytim(aiaprep_to_time(file_list[*,0]),/utime)
 marker=value_locate(filetimes,aia_time)
 
 print,'AIA selected time is: ',anytim(filetimes(marker),/vms)
-;print,marker
-;stop
-;area of 1 AIA pixel in cm^2
-aia_pixel_area = 1.85589e+15
+
+;find the area of 1 AIA pixel in cm^2
+aia_pixel_area = aia_teem_pixel_area(file_list[0,0])
 
 
+;set the parameter search space for T and sigma
+;----------------------------------------------
 t_min = 6.0
 t_max = 7.5
 t_d = 0.05
@@ -151,15 +184,13 @@ tsig_max = 0.80
 tsig_d = 0.01
 tsig = tsig_d * findgen((tsig_max - tsig_min)/tsig_d) + tsig_min
 
-
-
-area = aia_teem_pixel_area(file_list[0,0])
-
-IF f[0] EQ '' OR keyword_set(FORCE_TABLE) THEN aia_teem_table, wave_, tsig, telog = telog, q94 = q94, teem_table, save_dir = save_dir, area = area, n=n,epstein=epstein
+;if the AIA lookup table doesn't exist then create it. If /FORCE_TABLE is set, overwrite the existing lookup table.
+IF f[0] EQ '' OR keyword_set(FORCE_TABLE) THEN aia_teem_table, wave_, tsig, telog = telog, q94 = q94, teem_table, area = aia_pixel_area, n=n,epstein=epstein
 
 
 ; if a hsi_image was given then create a mask out of it
-IF hsi_image[0] NE '' THEN BEGIN
+;IF hsi_image[0] NE '' THEN BEGIN
+IF keyword_set(hsi_image) THEN BEGIN
 	fits2map, file_list[marker,0], aiamap
 	fits2map, hsi_image, hsimap
 	; interpolate the rhessi map to the aia map
@@ -176,19 +207,11 @@ IF hsi_image[0] NE '' THEN BEGIN
 	invmask_map = mask_map
 	invmask_map.data[index] = 1
 	invmask_map.data[complement] = 0
-ENDIF
-
-num_aia_pixels=total(mask_map.data)
-print,num_aia_pixels
-
-flare_area=aia_pixel_area*num_aia_pixels
-;stop
-
-;;;;;;
-
-
-
-default, save_dir, ''
+ENDIF ELSE BEGIN
+	;if no RHESSI image, then by default entire AIA map is used
+	fits2map,file_list[marker,0], mask_map
+	mask_map.data[*] = 1
+ENDELSE
 
 nwave = n_elements(wave_)
 flux_ = fltarr(nwave)
@@ -198,6 +221,8 @@ file_iw = reform(file_list[marker,*])
 
 ;file_bk_iw = reform(file_list(marker-100,*))
 
+;now we are ready to read the 6 AIA data files at the time of interest
+;---------------------------------------------------------------------
 FOR iw = 0, nwave-1 DO BEGIN
 	 
 	read_sdo,file_iw[iw],index,data
@@ -208,12 +233,12 @@ FOR iw = 0, nwave-1 DO BEGIN
 			
 	IF keyword_set(xrange) AND keyword_set(yrange) THEN BEGIN
 	    sub_map, map, smap, xrange = xrange, yrange = yrange
-;	    sub_map, map_bk,smap_bk,xrange=xrange,yrange=yrange
 	    map = smap
-;	    map_bk = smap_bk
 	    data = smap.data
- ;           data_bk = smap_bk.data
-    ENDIF
+	    ;also need to create a sub map for the mask
+	    sub_map, mask_map, smask_map, xrange = xrange, yrange = yrange
+	    mask_map = smask_map
+   	ENDIF
     
 	s = size(data)
 	i1=0 & j1=0 & i2=s[1]-1 & j2=s[2]-1
@@ -238,14 +263,18 @@ FOR iw = 0, nwave-1 DO BEGIN
 	print,'Total flux in ', wave_(iw),flux_(iw)
 ENDFOR
 
-;stop
+;now work out the area of the region of interest by finding out how many '1' pixels are under the mask
+;-----------------------------------------------------------------------------------------------------
+num_aia_pixels=total(mask_map.data)
+print,num_aia_pixels
+
+flare_area=aia_pixel_area*num_aia_pixels
+
 
 ;then do the mapping using the AIA fluxes. Since RHESSI is basically 1 pixel for spectrum we only need one summed AIA pixel too.
+;------------------------------------------------------------------------------------------------------------------------------
 
-
-
-
-restore, save_dir + teem_table, /verbose
+restore, teem_table, /verbose
 
 dim	= size(flux)
 nte	= dim[1]
@@ -365,47 +394,16 @@ nfree=3
 			ENDIF 
 		ENDIF
 		
-		
-		
-			;window, 0
-			;loadct, 0
-			;hsi_linecolors
-			;nlevels = 20
-			;levels = chimin * (findgen(nlevels)*0.1 + 1.0)
-			;anot = strarr(20)
-			;FOR k = 0, nlevels-1 DO anot[k] = num2str(levels[k])
-			;contour, chi2d, telog, tsig, levels = levels, c_annotation = anot, xtitle = 'log[Temp]', ytitle = 'sig'
-			;oplot, [telog_best], [sig_best], psym = symcat(16), color = 6
-			;leg = num2str(chimin) + '[' + num2str(telog_best) + ',' + num2str(sig_best) + ']'
-			;legend, leg, psym = 4
-			;contour,chi2d,telog, tsig, levels=[chimin + 2.3],/over,thick=2, color = 6
-			
-			;window, 1
-			;emlog =em_best*exp(-(telog-telog_best)^2/(2.*sig_best^2))
-			;plot, telog, emlog, yrange=minmax(emlog),xtitle='Temperature  log(T)',$
-   			;ytitle='Emission measure  log(EM [cm!U-5!N K!U-1!N])'
-   			;r = chianti_spec_from_dem(telog, emlog, /plot)
-   			;save, emlog, telog, r, filename = 'xray_spectrum_i' + num2str(i) + '_j' + num2str(j) + '.sav'
+;Save the results of the DEM analysis according to which keywords were used
+;---------------------------------------------------------------------------		
 
-			 ; plot the RHESSI chi^2 map 
-			;hsi_levels = chimin_hsi * (findgen(nlevels)*0.1 + 1.0)
-			;FOR k = 0, nlevels-1 DO anot[k] = num2str(levels[k])
-			;window,5
-			;contour,chi_hsi,telog,tsig, levels = hsi_levels, c_annotation = anot, xtitle = 'log[Temp]', ytitle = 'sig',title='RHESSI X^2 map'
-			;oplot, [telog_best_hsi], [sig_best_hsi], psym = symcat(16), color = 6
-			;
-			;legend, leg, psym = 4
-			;contour,chi_hsi,telog, tsig, levels=[chimin_hsi + 2.3],/over,thick=2, color = 6
-		;ENDIF
-
-;SAVE,chi2d,chi_hsi,axis,em_2d,em_2d_hsi,real_count_flux_hsi,model_count_flux_hsi,flux_dem_best,flux_dem,em_best,em_best_hsi,telog_best,$
-;telog_best_hsi,sig_best,sig_best_hsi,chimin,chimin_hsi,flare_area,filename='aia_hsi_fit_results_bk.sav',/verbose
-;		;stop
+IF NOT keyword_set(n) THEN n=0
+IF keyword_set(epstein) THEN model='Epstein' ELSE model='Gauss'
 
 IF keyword_set(aia_only) THEN BEGIN
 	aia_fit_results=create_struct('flux_obs',flux_obs,'flux_dem_3d',flux_dem_3d,'chi_2d',chi2d,'em_2d',em_2d,'em_2d_hsi',em_2d_hsi,$
 	'flux_dem_best',flux_dem_best,'flux_dem',flux_dem,'em_best',em_best,'telog_best',telog_best,$
-	'sig_best',sig_best,'chimin',chimin,'flare_area',flare_area,'telog',telog,'tsig',tsig)
+	'sig_best',sig_best,'chimin',chimin,'flare_area',flare_area,'telog',telog,'tsig',tsig, 'n', n, 'model',model)
 
 	IF keyword_set(epstein) THEN BEGIN
 		SAVE,aia_fit_results,filename='aia_fit_results_epstein.sav',/verbose
@@ -429,7 +427,7 @@ ENDIF ELSE BEGIN
 	aia_hsi_fit_results=create_struct('flux_obs',flux_obs,'flux_dem_3d',flux_dem_3d,'chi_2d',chi2d,'chi2d_hsi',chi2d_hsi,'axis',axis,'em_2d',em_2d,'em_2d_hsi',em_2d_hsi,$
 	'real_count_flux_hsi',real_count_flux_hsi,'model_count_flux_hsi',model_count_flux_hsi,'model_count_flux_hsi_best',model_count_flux_hsi_best,$
 	'flux_dem_best',flux_dem_best,'flux_dem',flux_dem,'em_best',em_best,'em_best_hsi',em_best_hsi,'telog_best',telog_best,'telog_best_hsi',telog_best_hsi,$
-	'sig_best',sig_best,'sig_best_hsi',sig_best_hsi,'chimin',chimin,'chimin_hsi',chimin_hsi,'flare_area',flare_area,'telog',telog,'tsig',tsig)
+	'sig_best',sig_best,'sig_best_hsi',sig_best_hsi,'chimin',chimin,'chimin_hsi',chimin_hsi,'flare_area',flare_area,'telog',telog,'tsig',tsig, 'n',n, 'model',model)
 	
 	IF keyword_set(epstein) THEN BEGIN
 		SAVE,aia_hsi_fit_results,filename='aia_hsi_fit_results_epstein.sav',/verbose
