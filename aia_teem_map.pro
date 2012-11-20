@@ -115,9 +115,17 @@ telog_errmap_symmetric = fltarr(nxx,nyy)
 sig_errmap_symmetric = fltarr(nxx,nyy)
 chi_map6 = fltarr(nxx,nyy,6)
 
+chi_map_hsi = fltarr(nxx,nyy)
+telog_map_hsi = fltarr(nxx,nyy)
+sig_map_hsi = fltarr(nxx,nyy)
+
 telog_best	= 0.
 em_best	= 0.
 sig_best = 0.
+
+telog_best_hsi = 0.
+em_best_hsi = 0.
+sig_best_hsi = 0.
 
 ; the number of fit parameters
 nfree = 3
@@ -140,13 +148,15 @@ FOR j = 0, nyy-1 DO BEGIN
 	
 		flux_obs = reform(images[i,j,*])
 		counts = flux_obs*texp_
-		stop
+		;stop
 		noise = sqrt(counts)/texp_
 
 		chimin = 9999.
 		chi6min = 9999.
+		chimin_hsi=9999.
 		flux_dem_best = 9999.
 		chi2d = fltarr(nte,nsig)
+		chi_hsi = fltarr(nte,nsig)
 		
 		telog_err = [0,0]
 		sig_err = [0,0]
@@ -161,7 +171,19 @@ FOR j = 0, nyy-1 DO BEGIN
 				flux_dem = flux_dem1 * em1
 				chi	= sqrt(total((flux_obs-flux_dem)^2/noise^2)/(nwave-nfree))
 				chi6 = abs(flux_obs-flux_dem)/noise
-				chi2d[k,l] = chi				
+				chi2d[k,l] = chi
+				;add in RHESSI
+				em_hsi=em1 /1e25
+				em_hsi=em_hsi/1e24    ;
+				em_hsi=em_hsi*39.*1e15 
+				IF (k eq 0) THEN BEGIN
+				em_hsi=em_hsi * (10^telog(1) - 10^telog(0))
+				ENDIF ELSE BEGIN
+				em_hsi=em_hsi * (10^telog(k) - 10^telog(k-1))
+				ENDELSE	
+			
+				get_hsi_table_entry,[em_hsi,telog(k),tsig(l)],model_count_flux,real_count_flux,axis,summary, obj=obj
+				chi_hsi[k,l] = summary.spex_summ_chisq			
 				IF (chi le chimin) THEN BEGIN
 					chimin = chi
 					chi6min	= chi6
@@ -170,6 +192,12 @@ FOR j = 0, nyy-1 DO BEGIN
 					telog_best	= telog[k]
 					sig_best = tsig[l]
 					flux_dem_best = flux_dem
+				ENDIF
+				IF (chi_hsi[k,l] le chimin_hsi) THEN BEGIN
+					chimin_hsi=chi_hsi[k,l]
+					em_best_hsi=alog10(em1)
+					telog_best_hsi = telog[k]
+					sig_best_hsi = tsig[l]
 				ENDIF
 			ENDFOR 
 		ENDFOR
@@ -235,6 +263,9 @@ FOR j = 0, nyy-1 DO BEGIN
 		telog_errmap_symmetric[i,j] = telog_errsymmetric
 		sig_errmap_symmetric[i,j] = sig_errsymmetric
 	
+		chi_map_hsi[i,j] = chimin_hsi
+		telog_map_hsi[i,j] = telog_best_hsi
+		sig_map_hsi[i,j] = sig_best_hsi
 	ENDFOR
 	
 	t2 = systime(0,/seconds)
@@ -301,7 +332,8 @@ print,'log(EM)-range = ',minmax(em_map)
 
 ;________________________SAVE MAPS________________________________
 ;save,filename=teem_map,telog_map,em_map,sig_map,chi_map,dateobs 
-save,filename=save_dir + teem_map,telog_map,em_map,sig_map,chi_map,sig_errmap_symmetric,telog_errmap_symmetric,temperature_map,emission_map,sigma_map,chisq_map,aia_map_cube, dateobs , aia_simul_map_cube
+save,filename=save_dir + teem_map,telog_map,em_map,sig_map,chi_map,sig_errmap_symmetric,telog_errmap_symmetric,temperature_map,emission_map,sigma_map,chisq_map,aia_map_cube, $
+dateobs , aia_simul_map_cube, chi_map_hsi, telog_best_hsi, sig_best_hsi
 save,temperature_map,emission_map,sigma_map,chisq_map,sig_error_map_minus,sig_error_map_plus,telog_error_map_minus,telog_error_map_plus,aia_simul_map_cube, filename=save_dir + 'tempmap' + filename_extra + '.sav'
 
 print,'TE+EM maps saved in file : ',teem_map

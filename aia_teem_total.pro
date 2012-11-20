@@ -73,7 +73,7 @@ FOR iw = 0, nwave-1 DO BEGIN
 	print,'Total flux in ', wave_(iw),flux_(iw)
 ENDFOR
 
-IF keyword_set(mask) THEN mask_frac=total(mask)/n_elements(data) ELSE mask_frac = 1.
+IF keyword_set(mask_map) THEN mask_frac=total(mask)/n_elements(data) ELSE mask_frac = 1.
 
 ;_____________________AIA RESPONSE FUNCTION________________________
 restore,save_dir + teem_table      ;-->wave_,q94,area,resp_corr,telog,dte,tsig,flux
@@ -84,7 +84,7 @@ restore,save_dir + teem_map	;-->te_map,em_map,sig_map,chi_map,dateobs
 dim	=size(em_map)
 nx	=dim(1)
 ny	=dim(2)
-IF NOT keyword_set(mask) THEN tempmask = replicate(1,nx,ny) ELSE tempmask = congrid(mask,nx,ny)
+IF NOT keyword_set(mask_map) THEN tempmask = replicate(1,nx,ny) ELSE tempmask = congrid(mask,nx,ny)
 em_tot	=dblarr(nte)
 em	=dblarr(nte)
 te	=dblarr(nte)
@@ -162,7 +162,6 @@ IF keyword_set(PLOT) THEN BEGIN
    		ytitle='Emission measure  log(EM [cm!U-5!N K!U-1!N])'
    	oploterr, telog, emlog, emlog_err
 ENDIF
-
 ;______________________TOTAL FLUX FROM DEM________________________
 flux_dem=fltarr(nwave)
 qflux	=fltarr(nwave)
