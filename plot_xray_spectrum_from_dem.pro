@@ -90,10 +90,10 @@ set_plot,'ps'
 device,encaps=1,filename='xray_spectrum_from_dem.ps'
 ENDIF
 
-plot,eph[0,*],photons,thick=2,charsize=1.2,/xlog,/ylog,xrange=[1,30],/xstyle,xtitle='energy (keV)',ytitle='photons cm^-2 keV^-1'
+plot,eph[0,*],photons,thick=2,charsize=1.2,/xlog,/ylog,xrange=[1,30],/xstyle,xtitle='energy [keV]',ytitle='photons cm!U-2!N keV!U-1!N'
 
 IF keyword_set(epstein) THEN BEGIN
-ssw_legend,['EM = ' + num2str(em) + ' cm^-3 kev^-1','T = ' + num2str(tinkev) + ' keV','sigma = ' + num2str(sigma), 'n = ' + num2str(n),$
+ssw_legend,['EM = ' + num2str(em) + ' cm!U-3!N kev!U-1!N','T = ' + num2str(tinkev) + ' keV','sigma = ' + num2str(sigma), 'n = ' + num2str(n),$
  'flare area = ' + num2str(flare_area) + ' cm^2', 'Model: Epstein'],/right,charsize=1.2
 ENDIF ELSE BEGIN
 ssw_legend,['EM = ' + num2str(em) + ' cm^-3 kev^-1','T = ' + num2str(tinkev) + ' keV','sigma = ' + num2str(sigma),$

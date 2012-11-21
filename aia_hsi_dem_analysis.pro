@@ -11,7 +11,7 @@
 ;       DEM ANALYSIS
 ;
 ; CALLING SEQUENCE:
-;       aia_hsi_dem_analysis, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
+;       aia_hsi_dem_analysis, fit_time = fit_time, bkg_time = bkg_time, DIR = dir, HSI_IMAGE = hsi_image, FILESET = fileset, FORCE_TABLE = force_table, aia_only=aia_only,epstein=epstein,n=n, $
 ;       spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,xrange=xrange,yrange=yrange,override=override
 ;
 ; CALLED BY: do_dem_analysis
@@ -82,6 +82,7 @@ spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,xrange
 
 ;start with some checks to make sure there are no problems with the initialisation
 ;---------------------------------------------------------------------------------
+default, n, 10
 IF (n_elements(fit_time) ne 2) THEN BEGIN
 	print,'fit_time must be a 2-element string. Aborting.'
 	return
@@ -89,11 +90,9 @@ ENDIF ELSE IF (n_elements(bkg_time) ne 2) THEN BEGIN
 	print,'bkg_time must be a 2-element string. Aborting.'
 	return
 ENDIF ELSE IF NOT keyword_set(spec_file) THEN BEGIN
-	print,'No RHESSI spectrum file selected. Aborting.'
-	return
+	print,'No RHESSI spectrum file selected.'
 ENDIF ELSE IF NOT keyword_set(drm_file) THEN BEGIN
-	print,'No RHESSI DRM file selected. Aborting.'
-	return
+	print,'No RHESSI DRM file selected.'
 ENDIF ELSE IF keyword_set(epstein) AND NOT keyword_set(n) THEN BEGIN
 	print,'/EPSTEIN keyword is set, but steepness keyword N is not set.'
 	print,'N must be given when /EPSTEIN is used. Aborting.'
@@ -163,7 +162,7 @@ FOR i = 0, nwave-1 DO nfiles[i] = n_elements(file_list[*,i])
 aia_time=anytim(fit_time[0],/utime)
 
 ;find the closest time to AIA_TIME available from the AIA data files. MARKER stores the array index of this
-filetimes=anytim(aiaprep_to_time(file_list[*,0]),/utime)
+filetimes=anytim(aiafile_to_time(file_list[*,0], fileset=fileset),/utime)
 marker=value_locate(filetimes,aia_time)
 
 print,'AIA selected time is: ',anytim(filetimes(marker),/vms)
@@ -196,8 +195,10 @@ IF keyword_set(hsi_image) THEN BEGIN
 	; interpolate the rhessi map to the aia map
 	
 	mask_map = inter_map(hsimap,aiamap)
-	mask_map = drot_map(mask_map, time = aiamap.time)
-	m = max(mask_map.data)
+	;need to check if the source is on the disk, if so run drot, if not 
+	;do not!
+	;mask_map = drot_map(mask_map, time = aiamap.time)
+	m = max(mask_map.data, mindex)
 	; set the mask at everything above 50% contour
 	index = where(mask_map.data LE m*0.5, complement = complement)
 	mask_map.data[index] = 0
