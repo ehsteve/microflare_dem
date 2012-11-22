@@ -231,7 +231,31 @@ FOR iw = 0, nwave-1 DO BEGIN
 
         index2map,index,float(data),map
 ;	index2map,index_bk,float(data_bk),map_bk
-			
+	
+	;------------------------------------------------------------------------------------------
+	;sometimes image dimensions can vary slightly between EUV wavelengths. Perform a check here	
+	mask_dim=size(mask_map.data)
+	image_dim=size(map.data)
+
+	;if mask dimensions don't match with the latest image then congrid the mask to compensate
+	IF (mask_dim[1] ne image_dim[1]) OR (mask_dim[2] ne image_dim[2]) THEN BEGIN
+		mask_map=rebin_map(mask_map,image_dim[1],image_dim[2])
+		;only want binary values in mask
+		for a=0,image_dim[1]-1 do begin
+			for b=0,image_dim[2]-1 do begin
+				IF (mask_map.data[a,b] gt 0.5) THEN mask_map.data[a,b] = 1.0 ELSE mask_map.data[a,b]=0.0
+			endfor
+		endfor
+		;print a warning message that a congrid was performed
+		print,' '
+		print,'------------------------------------------------------------------------------------'
+		print,'Warning: image dimensions changed between wavelengths. Mask map had to be rebinned.'
+		print,'------------------------------------------------------------------------------------'
+	ENDIF
+	
+
+	;------------------------------------------------------------------------------------------
+
 	IF keyword_set(xrange) AND keyword_set(yrange) THEN BEGIN
 	    sub_map, map, smap, xrange = xrange, yrange = yrange
 	    map = smap
@@ -302,8 +326,24 @@ nfree=3
 		em_2d = fltarr(nte,nsig)
 		em_2d_hsi = fltarr(nte,nsig)
 		flux_dem_3d = fltarr(nte,nsig,6)
-		model_count_flux_hsi = fltarr(nte,nsig,300)
-		real_count_flux_hsi = fltarr(nte,nsig,300)
+
+		;if analysing RHESSI data, need to find out some array dimensions. Do a test call to get_hsi_table_entry to establish these
+		;--------------------------------------------------------------------------------------------------------------------------'
+		IF NOT keyword_set(aia_only) THEN BEGIN
+			IF keyword_set(epstein) THEN BEGIN
+				get_hsi_table_entry,[0.1,0.09,8.0,0.3,0.5,n,1],model_count_flux,real_count_flux,axis,summary, obj=obj, $
+				spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time,epstein=epstein
+				hsi_len=n_elements(real_count_flux)
+			ENDIF ELSE BEGIN
+				get_hsi_table_entry,[0.1,0.09,6.0,0.3,0.5,1],model_count_flux,real_count_flux,axis,summary, obj=obj, $
+				spec_file=spec_file,drm_file=drm_file,fit_time=fit_time,bkg_time=bkg_time
+				hsi_len=n_elements(real_count_flux)
+			ENDELSE
+		
+			model_count_flux_hsi = fltarr(nte,nsig,hsi_len)
+			real_count_flux_hsi = fltarr(nte,nsig,hsi_len)
+		ENDIF
+		;---------------------------------------------------------------------------------------------------------------------------'
 		
 		telog_err = [0,0]
 		sig_err = [0,0]
