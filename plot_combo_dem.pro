@@ -1,7 +1,7 @@
 PRO plot_combo_dem,n=n,epstein=epstein
 
 IF keyword_set(epstein) THEN BEGIN
-   restore,'aia_hsi_fit_results.sav',/verbose
+   restore,'aia_hsi_fit_results_epstein.sav',/verbose
    a=aia_hsi_fit_results
 ENDIF ELSE BEGIN
    restore,'aia_hsi_fit_results.sav',/verbose
@@ -43,7 +43,7 @@ ENDIF ELSE BEGIN
    device,filename='combo_dem.ps'
 ENDELSE
 
-plot,telog,alog10(aia_dem),thick=3,xthick=3,ythick=3,charthick=3,charsize=1.2,linestyle=0,yrange=[10,30],ytitle='log EM (cm!U-5!N K!U-1!N)',xtitle = 'log T (K)'
+plot,telog,alog10(aia_dem),thick=3,xthick=3,ythick=3,charthick=3,charsize=1.2,linestyle=0,yrange=[18,23],ytitle='log EM (cm!U-5!N K!U-1!N)',xtitle = 'log T (K)'
 
 oplot,telog,alog10(hsi_dem),thick=3,linestyle=2
 
