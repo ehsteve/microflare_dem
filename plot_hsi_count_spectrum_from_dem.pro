@@ -1,6 +1,6 @@
 PRO plot_hsi_count_spectrum_from_dem,epstein=epstein,ps=ps,type=type
 
-default,type,''
+default,type,'combo'
 
 IF keyword_set(epstein) THEN BEGIN
    restore,'aia_hsi_fit_results_epstein.sav',/verbose
@@ -24,9 +24,9 @@ combo_spec=a.model_count_flux_hsi[pos[0],pos[1],*]
 
 ;xticks=[' ',' ','5',' ',' ',' ',' ','10']
 
-IF NOT keyword_set(type) OR (type eq 'hsi') THEN BEGIN
-   yrange=[0.01,2]
+IF (type eq 'hsi') THEN BEGIN
    model=a.model_count_flux_hsi_best
+   yrange=[0.01,max(model) + 1]
 ENDIF ELSE IF (type eq 'aia') THEN BEGIN
    model=aia_spec
    yrange=[0.01,max(model) + 1]
@@ -43,9 +43,9 @@ ENDELSE
 IF keyword_set(ps) THEN BEGIN
    set_plot,'ps'
    IF keyword_set(epstein) THEN BEGIN
-      device,encaps=1,filename='rhessi_count_spectrum_vs_model_epstein.ps'
+      device,encaps=1,filename='rhessi_count_spectrum_vs_model_'+type+'_epstein.ps'
    ENDIF ELSE BEGIN
-      device,encaps=1,filename='rhessi_count_spectrum_vs_model.ps'
+      device,encaps=1,filename='rhessi_count_spectrum_vs_model_'+type+'.ps'
    ENDELSE
 ENDIF
 
